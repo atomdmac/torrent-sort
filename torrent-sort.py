@@ -41,11 +41,11 @@ except IndexError as exc:
 	sys.exit()
 
 # Connect w/ Transmission and add the torrent file to it.
-c = transmissionrpc.Client()
-t = c.add_torrent('file://' + file_name, paused=True)
+client = transmissionrpc.Client()
+torrent = client.add_torrent('file://' + file_name, paused=True)
 
 # Update torrent to ensure that all fields are populated
-t.update()
+torrent.update()
 
 # TODO: Check to see if new torrent is a duplicate
 
@@ -86,10 +86,10 @@ def handle_whatcd(torrent):
 		pass
 
 	# Move torrent data to the new path
-	c.move_torrent_data(torrent.id, path)
+	client.move_torrent_data(torrent.id, path)
 
 	# Now that we know where the torrent will live, start downloading it!
-	c.start_torrent(torrent.id)
+	client.start_torrent(torrent.id)
 
 # List of patterns to search for in tracker URLs and corresponding functions to
 # fire if a match is found
@@ -98,10 +98,17 @@ actions = {
 }
 
 # Process actions on torrent
+found_action = False
 for action in actions:
-	for tracker_url in t.trackers:
+	for tracker_url in torrent.trackers:
 		p = re.compile(action)
 		url = tracker_url['announce']
 
 		if p.search(tracker_url['announce']):
-			actions[action](t)
+			actions[action](torrent)
+			found_action = True
+
+# If no special actions could be taken, continue as usual.
+if not found_action:
+	print 'No special actions found... Starting torrent using defaults.'
+	client.start_torrent(torrent.id)
