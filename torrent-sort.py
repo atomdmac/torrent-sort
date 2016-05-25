@@ -4,21 +4,26 @@ import os
 import transmissionrpc
 import psutil
 
+# TODO: Copy all torrents to a central location
+
 # See if Transmission is running
 isRunning = False
 for proc in psutil.process_iter():
     try:
         pinfo = proc.as_dict(attrs=['pid', 'name'])
+
+        p = re.compile('transmission')
+        if p.search(pinfo['name']):
+        	isRunning = True
+        	break
     except psutil.NoSuchProcess:
         pass
-    else:
-        isRunning = True
-        break
 
 if isRunning:
 	print 'Transmission is running already.  Adding torrent...'
 else:
 	print 'Transmission isn\'t running.  You should start it.'
+	exit()
 	# TODO: Attempt to launch Transmission
 
 # Read a torrent file name.
@@ -47,8 +52,6 @@ def handle_whatcd(torrent):
 
 	# Gather data from the torrent
 	tmp = torrent.name.split(' - ')
-	
-	print 'tmp dir is ', tmp
 
 	artist = tmp[0]
 	album  = tmp[1].split(' (')[0]
@@ -79,5 +82,3 @@ for action in actions:
 
 		if p.search(tracker_url['announce']):
 			actions[action](t)
-
-# Close Transmission connection (if necessary)
