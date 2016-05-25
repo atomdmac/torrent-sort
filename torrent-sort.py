@@ -1,25 +1,83 @@
 import sys
+import re
+import os
 import transmissionrpc
+import psutil
+
+# See if Transmission is running
+isRunning = False
+for proc in psutil.process_iter():
+    try:
+        pinfo = proc.as_dict(attrs=['pid', 'name'])
+    except psutil.NoSuchProcess:
+        pass
+    else:
+        isRunning = True
+        break
+
+if isRunning:
+	print 'Transmission is running already.  Adding torrent...'
+else:
+	print 'Transmission isn\'t running.  You should start it.'
+	# TODO: Attempt to launch Transmission
 
 # Read a torrent file name.
 file_name = sys.argv[1]
-if file_name == None: sys.exit()
 
-# Check to see if Transmission is running.  If not, attempt to start it.
+if file_name != None:
+	print 'Attempting to add torrent file: ', file_name
+else:
+	print 'I need a torrent file in order to work :('
+	sys.exit()
+
+# Connect w/ Transmission and add the torrent file to it.
 c = transmissionrpc.Client()
-t = c.add_torrent(file_name)
-# t = c.get_torrent(0)
+t = c.add_torrent('file://' + file_name)
 
-print t.
+# Update torrent to ensure that all fields are populated
+t.update()
 
-# Attempt to connect to Transmission
-
-# Abort with error if Transmission isn't running
-
-# Add the Torrent file to Transmission and get a Torrent object that we can
-# read from and manipulate.
+# TODO: Check to see if new torrent is a duplicate
 
 # Perform actions on Torrents based on critera read from Torrent object
 # Ex: For torrents from What.cd, move the torrent download location to the appropriate place in the Music directory structure.
+def handle_whatcd(torrent):
+	# Settings for this action
+	DOWNLOAD_DIR = 'F:/Music'
+
+	# Gather data from the torrent
+	tmp = torrent.name.split(' - ')
+	
+	print 'tmp dir is ', tmp
+
+	artist = tmp[0]
+	album  = tmp[1].split(' (')[0]
+	folder = artist[0].upper()
+
+	# Make alphabet folder if not currently available
+	path = DOWNLOAD_DIR + '/' + folder + '/' + artist + '/' + album
+
+	try:
+		os.mkdir(path)
+	except OSError as exc:
+		pass
+
+	# Move torrent data to the new path
+	c.move_torrent_data(torrent.id, path)
+
+# List of patterns to search for in tracker URLs and corresponding functions to
+# fire if a match is found
+actions = {
+	'what.cd': handle_whatcd
+}
+
+# Process actions on torrent
+for action in actions:
+	for tracker_url in t.trackers:
+		p = re.compile(action)
+		url = tracker_url['announce']
+
+		if p.search(tracker_url['announce']):
+			actions[action](t)
 
 # Close Transmission connection (if necessary)
