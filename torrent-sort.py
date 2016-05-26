@@ -8,20 +8,30 @@ import psutil
 
 # See if Transmission is running
 isRunning = False
+# Create a regex to search for the string 'transmission'
+proc_rgx = re.compile('transmission')
+
 for proc in psutil.process_iter():
     try:
-        pinfo = proc.as_dict(attrs=['pid', 'name'])
+    	# Get info for this process
+        proc_info = proc.as_dict(attrs=['pid', 'name'])
 
-        p = re.compile('transmission')
-        if p.search(pinfo['name']):
+        # Extract the process name
+        proc_name = proc_info['name']
+
+        # Sometimes process names are 'None'.  We'll skip those
+        if proc_name == None: continue
+
+        proc_name = proc_name.lower()
+
+        # If this process is called 'transmission', we know Transmission is running
+        if proc_rgx.search(proc_name):
         	isRunning = True
         	break
     except psutil.NoSuchProcess:
         pass
 
-if isRunning:
-	print 'Transmission is running already.  Adding torrent...'
-else:
+if not isRunning:
 	print 'Transmission isn\'t running.  You should start it.'
 	exit()
 	# TODO: Attempt to launch Transmission
@@ -32,12 +42,12 @@ try:
 
 	# Check to see if file exists
 	if not os.path.isfile(file_name):
-		print 'File name was given but doesn\'t exist :('
+		print 'The file you specified doesn\'t exist.'
 		exit()
 	else:
-		print 'Attempting to add torrent file: ', file_name
+		print 'Adding torrent: ', file_name
 except IndexError as exc:
-	print 'I need a torrent file in order to work :('
+	print 'You need to specify a torrent file.'
 	sys.exit()
 
 # Connect w/ Transmission and add the torrent file to it.
@@ -110,5 +120,5 @@ for action in actions:
 
 # If no special actions could be taken, continue as usual.
 if not found_action:
-	print 'No special actions found... Starting torrent using defaults.'
+	print 'No special actions found. Starting torrent using defaults.'
 	client.start_torrent(torrent.id)
